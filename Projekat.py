@@ -1,57 +1,55 @@
-
-# coding: utf-8
-
-# In[52]:
-
 import numpy as np
 import scipy as sp
+import scipy.signal
 import matplotlib.pyplot as plt
 from sklearn import datasets
-import scipy.signal
 import scipy.cluster.vq as vq
 import scipy.io.wavfile as wav
 import python_speech_features as speech
 from sklearn import mixture
 from sklearn.mixture import GaussianMixture as gmm
 import scipy.spatial.distance as dist
+import glob
+import python_speech_features as speech
+from scipy.io.wavfile import read
+# np.set_printoptions(threshold=np.inf)
 
+number_of_different_speakers = 2
 
-# In[53]:
+audio_segments = []
+mfcc_data = []
+for filename in glob.glob('*.wav'):
+	(rate, data) = read(filename)
+	audio_segments.append(data)
+	mfcc_data.append(speech.mfcc(data))
 
-(rate,sig1) = wav.read("eric.wav")
-(rate,sig2) = wav.read("amy.wav")
+mfcc = mfcc_data[0]
+for x in range(1, len(mfcc_data)):
+	mfcc = np.vstack((mfcc, mfcc_data[x]))
 
-mfcc1 = speech.mfcc(sig1)
-mfcc2 = speech.mfcc(sig2)
+def calculate_centroids(samples):
+    gmix = mixture.GaussianMixture(n_components=number_of_different_speakers, covariance_type='full')
+    gmix.fit(samples)
+    return (gmix.means_)
 
-def fit_samples(samples):
-	gmix = mixture.GaussianMixture(n_components=2, covariance_type='full')
-	gmix.fit(samples)
-	return (gmix.means_) #ovo su centroide
-    
-mfcc_feat=np.vstack((mfcc1, mfcc2))
+gmms = calculate_centroids(mfcc)
 
-gmms = fit_samples(mfcc_feat)
+mean = []
+cov_mat = []
+for item in mfcc_data:
+    mean_i = np.mean(item)
+    mean.append(mean_i)
+    cov_i = np.cov(item)
+    cov_mat.append(np.cov(item))
 
-mean1 = np.mean(mfcc1)
-cov_mat1 = np.cov(mfcc1)
+whitened = vq.whiten(mfcc)
+(codebook, distortion) = vq.kmeans(obs=whitened, k_or_guess=gmms)
+code = vq.vq(whitened, codebook)
 
-mean2 = np.mean(mfcc2)
-cov_mat2 = np.cov(mfcc2)
+frequency = []
+for freq in codebook:
+	freq_sum = np.sum(freq)
+	freq = (freq_sum - freq)/freq_sum
+	frequency.append(freq)
 
-vq.whiten(mfcc_feat)
-kmeans = vq.kmeans(obs=mfcc_feat, k_or_guess=gmms)
-freq1 = kmeans[0][0] #codebook
-freq_sum1 = np.sum(freq1)
-freq1 = (freq_sum1 - freq1)/freq_sum1
-freq2 = kmeans[0][1] #codebook
-freq_sum2 = np.sum(freq2)
-freq2 = (freq_sum2 - freq2)/freq_sum2
-
-print(dist.cosine(freq1, freq2))
-
-
-# In[ ]:
-
-
-
+# print(dist.cosine(freq1, freq2))
