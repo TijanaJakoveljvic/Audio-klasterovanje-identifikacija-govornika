@@ -1,12 +1,13 @@
 
 # coding: utf-8
 
-# In[99]:
+# In[1]:
 
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
-from sklearn import datasets
+from sklearn import metrics
+from sklearn.cluster import KMeans
 import scipy.signal
 import scipy.cluster.vq as vq
 import scipy.io.wavfile as wav
@@ -17,27 +18,29 @@ import scipy.spatial.distance as dist
 import math
 
 
-# In[216]:
+# In[2]:
 
 def BIC(k, Sigs, Koefs, Lengths, penalty):
-    P1 = Lengths[Koefs[k][0]]* np.log(np.cov(Sigs[Koefs[k][0]]))
-    P2 = Lengths[Koefs[k][1]] * np.log(np.cov(Sigs[Koefs[k][1]]))
-    P3 = (Lengths[Koefs[k][0]]+Lengths[Koefs[k][1]])*np.log(np.linalg.det(np.cov(Sigs[Koefs[k][0]], Sigs[Koefs[k][1]])))
+    P1 = Lengths[Koefs[k][0]]* np.log(np.abs(np.cov(Sigs[Koefs[k][0]])+0.0001))
+    P2 = Lengths[Koefs[k][1]] * np.log(np.abs(np.cov(Sigs[Koefs[k][1]])+0.0001))
+    P3 = (Lengths[Koefs[k][0]]+Lengths[Koefs[k][1]])*np.log(np.abs(np.linalg.det(np.cov(Sigs[Koefs[k][0]], Sigs[Koefs[k][1]]))+0.0001))
     bic= 0.5*P1 + 0.5*P2-0.5*P3  + penalty*(2.5*(Lengths[Koefs[k][0]]+Lengths[Koefs[k][1]]))
     print(bic)
     return bic
 
 
-# In[270]:
+# In[63]:
 
 def fit_samples(samples, num):
 	gmix = mixture.GaussianMixture(n_components=num, covariance_type='full')
 	gmix.fit(samples)
-	return (gmix.means_) #ovo su centroide
+	return (gmix.means_)
 
 #glavna funkcija:
 def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
-    N = min(num, 5)
+    N = min(num, 25)
+    
+    global ind
     
     Koefs = []
     for i in range(0, N):
@@ -58,13 +61,20 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
                         MaxVals[l] = M[i][j]
                         Koefs[l] = [i,j]
                         break
-                 
+        
     #racunanje najveceg BIC
     Bics = []
         
     for i in range(0, N):
+        if(Koefs[i] == [0,0]):
+            N = N-1
+            continue
         Bics.append(BIC(i, Sigs, Koefs, Lengths, penalty))
     
+    if(len(Bics)<=1):
+        ind =-1
+        return
+        
     max_bic = Bics[0]
     max_i=0
     for i in range(1,N):
@@ -138,18 +148,47 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
     return (Means_new, Mfccs_new, Sigs_new, Lengths_new, Freqs_new, M_new, 1)
 
 
-# In[281]:
+# In[64]:
 
 def spoji_klastere(i, j):   
-    clust_1 = Clusters_True[i]
-    clust_2 = Clusters_True[j]
+    print(i,j)
+    global Clusters_Temp
+    global Clusters_Pred
+    global Clusters_True
+    global br_izb
+    
+    if(i >= num-br_izb and j>=num-br_izb):
+        clust_1 = min(Clusters_Temp[i], Clusters_Temp[j])
+        clust_2 = max(Clusters_Temp[i], Clusters_Temp[j])
+        br_izb = br_izb-1
+    elif(i < num-br_izb and j>= num-br_izb): 
+        clust_1 = min(Clusters_Pred[i], Clusters_Temp[j])
+        clust_2 = max(Clusters_Pred[i], Clusters_Temp[j])
+    else:
+        clust_1 = min(Clusters_Pred[i], Clusters_Pred[j])
+        clust_2 = max(Clusters_Pred[i], Clusters_Pred[j])
+        br_izb = br_izb+1
     
     for k in range(0, len(Clusters_Pred)):
-        if(Clusters_Pred[k]==clust_2):
-            Clusters_Pred[k]=clust_1
+            if(Clusters_Pred[k]==clust_2):
+                Clusters_Pred[k]=clust_1
+                
+    for k in range(0, len(Clusters_Temp)):
+            if(Clusters_Temp[k]==clust_2):
+                Clusters_Temp[k]=clust_1
+    
+    leng = len(Clusters_Temp)
+    Clusters_Temp1 = []
+    for k in range(0, leng):
+        if(k!=i and k!=j):
+            Clusters_Temp1.append(Clusters_Temp[k])
+    
+    Clusters_Temp1.append(clust_1)
+    
+    Clusters_Temp = Clusters_Temp1
 
 
-# In[282]:
+# In[88]:
 
 (rate,sig1) = wav.read("richard3.wav")
 (rate,sig2) = wav.read("amy3.wav")
@@ -157,24 +196,31 @@ def spoji_klastere(i, j):
 (rate,sig4) = wav.read("paolo3.wav")
 (rate,sig5) = wav.read("nilofer3.wav")
 
-People =[sig1, sig2, sig3, sig4, sig5]
+People =[sig4, sig2, sig3, sig1, sig5]
 Sigs=[]
 
 Clusters_True = []
 Clusters_Pred = []
+Clusters_Temp = []
 
 k=1
 c = 0
 for sig in People:
-    while((2000*k)<sig.shape[0]):
-        sig1 = sig[(k-1)*2000: k*2000]
-        Sigs.append(sig1[:,0])
-        Clusters_True.append(c)
+    while((2000*k)<sig.shape[0] and k<20):
+        if(sig.ndim==1):
+            k = k+1
+            continue
+        else:
+            sign1 = sig[(k-1)*2000: k*2000]
+            Sigs.append(sign1[:,0])
+            Clusters_True.append(c)
         k = k+1
+    k=1
     c = c+1
-
-for i in (0, len(Clusters_True)):
+    
+for i in range(0, len(Clusters_True)):
     Clusters_Pred.append(i)
+    Clusters_Temp.append(-1)
     
 num = len(Sigs)
 br_klast = 0
@@ -209,19 +255,38 @@ for i in range(0,num):
         
 
 
-# In[283]:
+# In[93]:
 
 ind = 1
-penalty = 3.3
+br_izb = 0
+penalty = 3.0
+SigTest = Sigs
 
-while(ind>0 and num>1):
+while(ind>0 and num>2):
     (Means, Mfccs, Sigs, Lengths, Freqs, M, ind) = calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty)
     num = num-1
-
-for i in range(0, len(Clusters_Pred)):
-    Clusters_Pred[i] = i
     
 print(Clusters_Pred)
+
+
+# In[90]:
+
+metrics.adjusted_mutual_info_score(Clusters_True, Clusters_Pred)
+
+
+# In[91]:
+
+metrics.adjusted_rand_score(Clusters_True, Clusters_Pred)
+
+
+# In[86]:
+
+kmeans = KMeans().fit(SigTest)
+
+
+# In[92]:
+
+
 
 
 # In[ ]:
