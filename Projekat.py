@@ -18,18 +18,17 @@ import scipy.spatial.distance as dist
 import math
 
 
-# In[2]:
+# In[271]:
 
 def BIC(k, Sigs, Koefs, Lengths, penalty):
     P1 = Lengths[Koefs[k][0]]* np.log(np.abs(np.cov(Sigs[Koefs[k][0]])+0.0001))
     P2 = Lengths[Koefs[k][1]] * np.log(np.abs(np.cov(Sigs[Koefs[k][1]])+0.0001))
     P3 = (Lengths[Koefs[k][0]]+Lengths[Koefs[k][1]])*np.log(np.abs(np.linalg.det(np.cov(Sigs[Koefs[k][0]], Sigs[Koefs[k][1]]))+0.0001))
     bic= 0.5*P1 + 0.5*P2-0.5*P3  + penalty*(2.5*(Lengths[Koefs[k][0]]+Lengths[Koefs[k][1]]))
-    print(bic)
     return bic
 
 
-# In[63]:
+# In[272]:
 
 def fit_samples(samples, num):
 	gmix = mixture.GaussianMixture(n_components=num, covariance_type='full')
@@ -51,7 +50,7 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
     #racunanje N najblizih koeficijenata
     for i in range(0,num-1):
         for j in range(2,num):
-            if(j>i):
+            if(j>i and i not in Merged and j not in Merged):
                 
                 for l in range(0,N):
                     if(M[i][j]>=MaxVals[l]):
@@ -87,7 +86,7 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
     Sigs_new = []
     Lengths_new = []
     Freqs_new = []
-    M_new = np.zeros((num, num))
+    M_new = np.zeros((num+1, num+1))
     
     if(max_bic<0):
         return (Means_new, Mfccs_new, Sigs, Lengths_new, Freqs_new, M_new, -1)
@@ -98,47 +97,24 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
     means_new = 0.5*Means[i]+0.5*Means[j]
     
     for k in range (0,num):
-        if(k!=i and k!=j):
-            Sigs_new.append(Sigs[k])
-            Mfccs_new.append(Mfccs[k])
-            Means_new.append(Means[k])
-            Lengths_new.append(Mfccs[k].shape[0])
-            Freqs_new.append(Freqs[k])
+        Sigs_new.append(Sigs[k])
+        Mfccs_new.append(Mfccs[k])
+        Means_new.append(Means[k])
+        Lengths_new.append(Mfccs[k].shape[0])
+        Freqs_new.append(Freqs[k])
+        Merged.append(i)
+        Merged.append(j)
     
-    for k in range(0, num-1):
-        if(k<i):
-            for l in range(0, num-1):
-                if(l<i):
-                    M_new[k][l]=M[k][l]
-                else:
-                    M_new[k][l]=M[k][l+1]
-        else:
-            for l in range(0, num-1):
-                if(l<i):
-                    M_new[k][l]=M[k+1][l]
-                else:
-                    M_new[k][l]=M[k+1][l+1]
-                    
-    for k in range(0, num-1):
-        if(k<j):
-            for l in range(0, num-1):
-                if(l<j):
-                    M_new[k][l]=M[k][l]
-                else:
-                    M_new[k][l]=M[k][l+1]
-        else:
-            for l in range(0, num-1):
-                if(l<j):
-                    M_new[k][l]=M[k+1][l]
-                else:
-                    M_new[k][l]=M[k+1][l+1]
+    for k in range(0, num):
+        for l in range(0, num):
+            M_new[k][l] = M[k][l]
 
     freq = means_new
     freq_sum = np.sum(freq)
     freq = (freq_sum - freq)/freq_sum
     
-    for k in range(0, num-2):
-        M_new[num-2][k] = np.abs(dist.cosine(Freqs[k], freq))
+    for k in range(0, num):
+        M_new[k][num] = np.abs(dist.cosine(Freqs[k], freq))
                
     Lengths_new.append(speech.mfcc(sig_new).shape[0])
     Means_new.append(means_new)        
@@ -148,47 +124,27 @@ def calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty):
     return (Means_new, Mfccs_new, Sigs_new, Lengths_new, Freqs_new, M_new, 1)
 
 
-# In[64]:
+# In[273]:
 
 def spoji_klastere(i, j):   
-    print(i,j)
-    global Clusters_Temp
     global Clusters_Pred
-    global Clusters_True
-    global br_izb
+    global num1
+    global num
     
-    if(i >= num-br_izb and j>=num-br_izb):
-        clust_1 = min(Clusters_Temp[i], Clusters_Temp[j])
-        clust_2 = max(Clusters_Temp[i], Clusters_Temp[j])
-        br_izb = br_izb-1
-    elif(i < num-br_izb and j>= num-br_izb): 
-        clust_1 = min(Clusters_Pred[i], Clusters_Temp[j])
-        clust_2 = max(Clusters_Pred[i], Clusters_Temp[j])
-    else:
-        clust_1 = min(Clusters_Pred[i], Clusters_Pred[j])
-        clust_2 = max(Clusters_Pred[i], Clusters_Pred[j])
-        br_izb = br_izb+1
+    clust_1 = min(Clusters_Pred[i], Clusters_Pred[j])
+    clust_2 = max(Clusters_Pred[i], Clusters_Pred[j])
     
     for k in range(0, len(Clusters_Pred)):
             if(Clusters_Pred[k]==clust_2):
                 Clusters_Pred[k]=clust_1
-                
-    for k in range(0, len(Clusters_Temp)):
-            if(Clusters_Temp[k]==clust_2):
-                Clusters_Temp[k]=clust_1
     
-    leng = len(Clusters_Temp)
-    Clusters_Temp1 = []
-    for k in range(0, leng):
-        if(k!=i and k!=j):
-            Clusters_Temp1.append(Clusters_Temp[k])
-    
-    Clusters_Temp1.append(clust_1)
-    
-    Clusters_Temp = Clusters_Temp1
+    if(clust_1!=clust_2):
+        Clusters_Pred.append(clust_1)
+    else:
+        num = num-1
 
 
-# In[88]:
+# In[ ]:
 
 (rate,sig1) = wav.read("richard3.wav")
 (rate,sig2) = wav.read("amy3.wav")
@@ -196,7 +152,7 @@ def spoji_klastere(i, j):
 (rate,sig4) = wav.read("paolo3.wav")
 (rate,sig5) = wav.read("nilofer3.wav")
 
-People =[sig4, sig2, sig3, sig1, sig5]
+People =[sig1, sig2, sig3, sig4, sig5]
 Sigs=[]
 
 Clusters_True = []
@@ -206,12 +162,12 @@ Clusters_Temp = []
 k=1
 c = 0
 for sig in People:
-    while((2000*k)<sig.shape[0] and k<20):
+    while((3000*k)<sig.shape[0] and k<30):
         if(sig.ndim==1):
             k = k+1
             continue
         else:
-            sign1 = sig[(k-1)*2000: k*2000]
+            sign1 = sig[(k-1)*3000: k*3000]
             Sigs.append(sign1[:,0])
             Clusters_True.append(c)
         k = k+1
@@ -225,10 +181,13 @@ for i in range(0, len(Clusters_True)):
 num = len(Sigs)
 br_klast = 0
         
+num1 = len(Sigs)
+    
 mfcc_feat = np.copy(speech.mfcc(Sigs[0]))
 Lengths = []#mfcc lengths
 Mfccs = []
 Freqs = []
+Merged = []
     
 for i in range(0, num):
     mfcc = speech.mfcc(Sigs[i])
@@ -255,36 +214,46 @@ for i in range(0,num):
         
 
 
-# In[93]:
+# In[ ]:
 
 ind = 1
 br_izb = 0
 penalty = 3.0
 SigTest = Sigs
 
-while(ind>0 and num>2):
+while(ind>0 and num<1.5*num1):
     (Means, Mfccs, Sigs, Lengths, Freqs, M, ind) = calculate(Means, Mfccs, Sigs, Lengths, Freqs, M, num, penalty)
-    num = num-1
+    num = num+1
     
-print(Clusters_Pred)
+Clusters_Pred = Clusters_Pred[0:num1]
 
 
-# In[90]:
+# In[269]:
 
-metrics.adjusted_mutual_info_score(Clusters_True, Clusters_Pred)
-
-
-# In[91]:
-
-metrics.adjusted_rand_score(Clusters_True, Clusters_Pred)
+metrics.adjusted_mutual_info_score(Clusters_True, Clusters_Pred[0:num1])
 
 
-# In[86]:
+# In[270]:
 
-kmeans = KMeans().fit(SigTest)
+metrics.adjusted_rand_score(Clusters_True, Clusters_Pred[0:num1])
 
 
-# In[92]:
+# In[258]:
+
+print(Clusters_Pred[0:num1])
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
 
 
 
