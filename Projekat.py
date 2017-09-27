@@ -144,7 +144,7 @@ def spoji_klastere(i, j):
         num = num-1
 
 
-# In[339]:
+# In[361]:
 
 (rate,sig1) = wav.read("richard3.wav")
 (rate,sig2) = wav.read("amy3.wav")
@@ -152,7 +152,7 @@ def spoji_klastere(i, j):
 (rate,sig4) = wav.read("paolo3.wav")
 (rate,sig5) = wav.read("nilofer3.wav")
 
-People =[sig1, sig2, sig3]#, sig4, sig5]
+People =[sig1, sig2]#, sig3, sig4, sig5]
 Sigs=[]
 
 Clusters_True = []
@@ -214,7 +214,7 @@ for i in range(0,num):
         
 
 
-# In[340]:
+# In[362]:
 
 ind = 1
 br_izb = 0
@@ -244,9 +244,19 @@ plt.xlabel('lambda')
 plt.show()
 
 
-# In[ ]:
+# Sada cemo da ga uporedimo sa K-Means klasterovanjem
+
+# In[363]:
+
+kmeans = KMeans(n_clusters = len(People)).fit(SigTest)
 
 
+# In[365]:
+
+plt.plot([5, 4, 3, 2], [-0.00084012433840210737, 0.000019108767102342213, 0.0012127801940447977, 0])
+plt.xlabel('number of speakers')
+plt.ylabel('adjusted rand score')
+plt.show()
 
 
 # In[ ]:
