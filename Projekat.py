@@ -144,7 +144,7 @@ def spoji_klastere(i, j):
         num = num-1
 
 
-# In[ ]:
+# In[339]:
 
 (rate,sig1) = wav.read("richard3.wav")
 (rate,sig2) = wav.read("amy3.wav")
@@ -152,7 +152,7 @@ def spoji_klastere(i, j):
 (rate,sig4) = wav.read("paolo3.wav")
 (rate,sig5) = wav.read("nilofer3.wav")
 
-People =[sig1, sig2, sig3, sig4, sig5]
+People =[sig1, sig2, sig3]#, sig4, sig5]
 Sigs=[]
 
 Clusters_True = []
@@ -214,11 +214,11 @@ for i in range(0,num):
         
 
 
-# In[ ]:
+# In[340]:
 
 ind = 1
 br_izb = 0
-penalty = 3.0
+penalty = 2.0
 SigTest = Sigs
 
 while(ind>0 and num<1.5*num1):
@@ -228,29 +228,20 @@ while(ind>0 and num<1.5*num1):
 Clusters_Pred = Clusters_Pred[0:num1]
 
 
-# In[269]:
+# Crvena linija - dvoje govornika;
+# Zelena - troje;
+# Crna - cetvoro;
+# Plava - pet
 
-metrics.adjusted_mutual_info_score(Clusters_True, Clusters_Pred[0:num1])
+# In[346]:
 
-
-# In[270]:
-
-metrics.adjusted_rand_score(Clusters_True, Clusters_Pred[0:num1])
-
-
-# In[258]:
-
-print(Clusters_Pred[0:num1])
-
-
-# In[ ]:
-
-
-
-
-# In[ ]:
-
-
+plt.plot([2.5, 2.75, 3.0, 3.25, 3.5], [0.0084893512164360627, 0.058373901752287974, 0.080020519988401762, 0.04903893368251009, 0.030893062200095738],'b-')
+plt.plot([3.0, 4.0, 5.0, 6.0], [0.012635494836764788, 0.023927580403038686, 0.10050651119374433, 0.065951682457237218], 'k-')
+plt.plot([3.0, 4.0], [0.094306851077516865, 0.078854427534835958], 'g-')
+plt.plot([3.0, 4.0, 5.0, 6.0], [0.01187366421277606, 0.11057599691774227, 0.16619905335075283, 0.09539311644642437], 'r-')
+plt.ylabel('adjusted rand score')
+plt.xlabel('lambda')
+plt.show()
 
 
 # In[ ]:
